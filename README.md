@@ -3,7 +3,7 @@
 Experimental
 
 
-Create a file named `secrets.conf` inside `resources` folder and add the right values:
+Add the files `secret.conf` and `credentials.json` inside `resources` folder, you will find them in the vault. Alternatively this is the `secrets.conf` template
 
 ```
 ktor {
@@ -14,3 +14,5 @@ ktor {
     }
 }
 ```
+
+and the `secrets.json` file is the google service account key.
