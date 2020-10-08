@@ -26,7 +26,7 @@ import io.ktor.util.KtorExperimentalAPI
 import kotlinx.html.*
 
 private const val SERVER_NAME = "IdentityServer4"
-private const val EXACT_REDIRECT_URL = "http://localhost:8080/oauth"
+private const val EXACT_REDIRECT_URL = "https://exact.akvotest.org/oauth"
 private const val EXACT_HOST = "start.exactonline.nl"
 
 @KtorExperimentalAPI

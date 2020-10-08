@@ -7,3 +7,4 @@
 *.iws
 /resources/secret.conf
 /resources/credentials.json
+/deployment.yml.tmp
