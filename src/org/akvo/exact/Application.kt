@@ -1,6 +1,7 @@
 package org.akvo.exact
 
 import com.typesafe.config.ConfigFactory
+import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.auth.*
@@ -45,8 +46,12 @@ val clientSettings = OAuthServerSettings.OAuth2ServerSettings(
 @KtorExperimentalAPI
 val googleToken = config.property("ktor.secret.googleToken").getString()
 
+fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
+
 @KtorExperimentalAPI
-fun main(args: Array<String>) {
+@Suppress("unused") // Referenced in application.conf
+@kotlin.jvm.JvmOverloads
+fun Application.module(testing: Boolean = false) {
 
     embeddedServer(Netty, 8080) {
 
