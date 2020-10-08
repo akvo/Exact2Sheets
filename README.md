@@ -2,7 +2,6 @@
 
 Experimental
 
-
 Add the files `secret.conf` and `credentials.json` inside `resources` folder, you will find them in the vault. Alternatively this is the `secrets.conf` template
 
 ```
