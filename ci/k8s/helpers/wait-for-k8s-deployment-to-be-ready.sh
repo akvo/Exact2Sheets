@@ -5,10 +5,10 @@ starttime=$(date +%s)
 
 while [ $(( $(date +%s) - 300 )) -lt "${starttime}" ]; do
 
-   data_portals_status=$(kubectl get pods -l "data-portals-version=$TRAVIS_COMMIT,run=data-portals" -o jsonpath='{range .items[*].status.containerStatuses[*]}{@.name}{" ready="}{@.ready}{"\n"}{end}')
-   old_data_portals_status=$(kubectl get pods -l "data-portals-version!=$TRAVIS_COMMIT,run=data-portals" -o jsonpath='{range .items[*].status.containerStatuses[*]}{@.name}{" ready="}{@.ready}{"\n"}{end}')
+   akvo_exact_status=$(kubectl get pods -l "akvo-exact-version=$TRAVIS_COMMIT,run=akvo-exact" -o jsonpath='{range .items[*].status.containerStatuses[*]}{@.name}{" ready="}{@.ready}{"\n"}{end}')
+   old_akvo_exact_status=$(kubectl get pods -l "akvo-exact-version!=$TRAVIS_COMMIT,run=akvo-exact" -o jsonpath='{range .items[*].status.containerStatuses[*]}{@.name}{" ready="}{@.ready}{"\n"}{end}')
 
-    if [[ ${data_portals_status} =~ "ready=true" ]] && ! [[ ${data_portals_status} =~ "ready=false" ]] && ! [[ ${old_data_portals_status} =~ "ready" ]] ; then
+    if [[ ${akvo_exact_status} =~ "ready=true" ]] && ! [[ ${akvo_exact_status} =~ "ready=false" ]] && ! [[ ${old_akvo_exact_status} =~ "ready" ]] ; then
         echo "all good!"
         exit 0
     else
@@ -19,6 +19,6 @@ done
 
 echo "Containers not ready after 5 minutes or old containers not stopped"
 
-kubectl get pods -l "run=data-portals" -o jsonpath='{range .items[*].status.containerStatuses[*]}{@.name}{" ready="}{@.ready}{"\n"}{end}'
+kubectl get pods -l "run=akvo-exact" -o jsonpath='{range .items[*].status.containerStatuses[*]}{@.name}{" ready="}{@.ready}{"\n"}{end}'
 
 exit 1
