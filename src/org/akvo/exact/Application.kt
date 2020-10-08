@@ -1,9 +1,6 @@
 package org.akvo.exact
 
-import com.google.gson.internal.GsonBuildConfig
 import com.typesafe.config.ConfigFactory
-import io.ktor.application.Application
-import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.auth.*
@@ -13,7 +10,6 @@ import io.ktor.client.features.json.JsonFeature
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.headers
-import io.ktor.client.request.put
 import io.ktor.config.HoconApplicationConfig
 import io.ktor.html.respondHtml
 import io.ktor.http.ContentType
@@ -26,16 +22,11 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.util.KtorExperimentalAPI
-import io.ktor.util.pipeline.PipelineContext
 import kotlinx.html.*
-import java.text.SimpleDateFormat
-import java.util.*
-
 
 private const val SERVER_NAME = "IdentityServer4"
 private const val EXACT_REDIRECT_URL = "http://localhost:8080/oauth"
 private const val EXACT_HOST = "start.exactonline.nl"
-private const val GOOGLE_SHEET_ID = "17d68qe4vxUlVHS-v8BVQFXKuhlvfR7PZ0D-DY7x5PLA"
 
 @KtorExperimentalAPI
 val config = HoconApplicationConfig(ConfigFactory.load("secret.conf"))
@@ -69,10 +60,34 @@ fun main(args: Array<String>) {
 
         routing {
             get("/") {
-                call.respondText(
-                    """Click <a href="/oauth">here</a> to import Exact invoices to google sheets""",
-                    ContentType.Text.Html
-                )
+                call.respondHtml {
+                    head {
+                        title { +"Exact Invoices" }
+                    }
+                    body {
+                        p {
+                            +"Once you login, this tool will import pending Exact invoices to "
+                            a {
+                                href =
+                                    "https://docs.google.com/spreadsheets/d/$GOOGLE_SHEET_ID/edit?usp=sharing"
+                                +"this google sheet."
+                            }
+                        }
+                        p {
+                            b {
+                                +"All previous data on that sheet will be deleted!"
+                            }
+                        }
+                        p {
+                            +"Click "
+                            a {
+                                href = "/oauth"
+                                +"here"
+                            }
+                            +" to begin."
+                        }
+                    }
+                }
             }
             authenticate(SERVER_NAME) {
                 get("/oauth") {
@@ -83,13 +98,16 @@ fun main(args: Array<String>) {
                     }
 
                     val invoicesResult = getInvoicesFromExact(client, principal)
-                    val insertionResult = writeDataToSheet(invoicesResult, client)
-                    print(insertionResult)
+                    val insertedId = SpreadSheetDataSource().insertToSheet(invoicesResult)
 
-                    call.respondText(
-                        """Data successfully inserted, click <a href="https://docs.google.com/spreadsheets/d/$GOOGLE_SHEET_ID/edit?usp=sharing">here</a> to open""",
-                        ContentType.Text.Html
-                    )
+                    if (insertedId.isBlank()) {
+                        call.respondText("""<b>Error inserting data</b>""", ContentType.Text.Html)
+                    } else {
+                        call.respondText(
+                            """Data successfully inserted, click <a href="https://docs.google.com/spreadsheets/d/$insertedId/edit?usp=sharing">here</a> to open""",
+                            ContentType.Text.Html
+                        )
+                    }
                 }
             }
         }
@@ -115,7 +133,7 @@ private suspend fun getInvoicesFromExact(
     //make them select the division?
     val division = divisionResult.d.results[0].currentDivision
     print("Your division is $division\n")
-    val result = client.get<InvoicesResult> {
+    return client.get {
 
         url {
             protocol = URLProtocol.HTTPS
@@ -128,71 +146,5 @@ private suspend fun getInvoicesFromExact(
             header("Authorization", "Bearer ${principal?.accessToken}")
         }
     }
-    return result
 }
 
-@KtorExperimentalAPI
-private suspend fun writeDataToSheet(result: InvoicesResult, client: HttpClient): String {
-    val invoices = result.d.results
-    val pattern = "dd-MM-yyyy"
-    val simpleDateFormat = SimpleDateFormat(pattern)
-    val values = mutableListOf<List<String>>()
-    values.add(listOf("OrderNumber", "InvoiceToName", "Amount", "OrderDate"))
-    for (invoice in invoices) {
-        val amount = invoice.amountDC.toString() + invoice.currency
-        val replace = invoice.orderDate.replace("/Date(", "").replace(")/", "")
-        val date = Date(replace.toLong())
-        val formattedDate = simpleDateFormat.format(date)
-        values.add(listOf(invoice.orderNumber.toString(), invoice.invoiceToName, amount, formattedDate))
-    }
-    val structure = SheetStructure("Sheet1!A1:D5", "ROWS", values)
-    return client.put {
-        url {
-            protocol = URLProtocol.HTTPS
-            host = "sheets.googleapis.com"
-            body = structure
-            encodedPath =
-                "/v4/spreadsheets/$GOOGLE_SHEET_ID/values/Sheet1!A1:D5?valueInputOption=USER_ENTERED"
-        }
-        contentType(ContentType.Application.Json)
-        header(
-            "Authorization",
-            "Bearer $googleToken"
-        )
-    }
-}
-
-private suspend fun PipelineContext<Unit, ApplicationCall>.displayHtmlTable(
-    result: InvoicesResult
-) {
-    val invoices = result.d.results
-    val pattern = "dd-MM-yyyy"
-    val simpleDateFormat = SimpleDateFormat(pattern)
-    fun TABLE.row(invoice: Invoice) {
-
-        val amount = invoice.amountDC.toString() + invoice.currency
-        val replace = invoice.orderDate.replace("/Date(", "").replace(")/", "")
-        val date = Date(replace.toLong())
-        val formattedDate = simpleDateFormat.format(date)
-
-        tr {
-            td { +invoice.orderNumber.toString() }
-            td { +invoice.invoiceToName }
-            td { +amount }
-            td { +formattedDate }
-        }
-    }
-
-    call.respondHtml {
-        head {
-            title { +"Exact Invoices" }
-        }
-        body {
-            table {
-                for (invoice in invoices) {
-                    row(invoice)
-                }
-            }
-        }
-    }
-}
