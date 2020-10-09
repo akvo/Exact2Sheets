@@ -5,7 +5,7 @@ import java.util.*
 
 class SpreadSheetDataMapper {
 
-    private val simpleDateFormat = SimpleDateFormat("dd-MM-yyyy")
+    private val simpleDateFormat = SimpleDateFormat("MM-dd-yyyy")
 
     fun invoicesToStrings(result: InvoicesResult): MutableList<List<String>> {
         val invoices = result.d.results
