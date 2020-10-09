@@ -10,13 +10,30 @@ class SpreadSheetDataMapper {
     fun invoicesToStrings(result: InvoicesResult): MutableList<List<String>> {
         val invoices = result.d.results
         val values = mutableListOf<List<String>>()
-        values.add(listOf("Description", "InvoiceToName", "InvoiceToContactPersonName", "Amount", "Currency", "OrderDate"))
+        values.add(
+            listOf(
+                "Description",
+                "Payers Name",
+                "InvoiceToContactPersonName",
+                "Amount",
+                "Currency",
+                "OrderDate"
+            )
+        )
         for (invoice in invoices) {
-            val amount = invoice.amountDC.toString()
-            val replace = invoice.orderDate.replace("/Date(", "").replace(")/", "")
-            val date = Date(replace.toLong())
-            val formattedDate = simpleDateFormat.format(date)
-            values.add(listOf(invoice.description, invoice.invoiceToName, invoice.invoiceToContactPerson, amount, invoice.currency, formattedDate))
+            val amount: String = invoice.amountDC?.toString() ?: ""
+            val date: Date? = invoice.orderDate?.replace("/Date(", "")?.replace(")/", "")?.toLong()?.let { Date(it) }
+            val formattedDate: String = if (date != null) simpleDateFormat.format(date) else ""
+            values.add(
+                listOf(
+                    invoice.description ?: "",
+                    invoice.invoiceToName ?: "",
+                    invoice.invoiceToContactPerson ?: "",
+                    amount,
+                    invoice.currency ?: "",
+                    formattedDate
+                )
+            )
         }
         return values
     }
