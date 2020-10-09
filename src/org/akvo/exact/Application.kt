@@ -76,7 +76,7 @@ fun Application.module(testing: Boolean = false) {
                         }
                         p {
                             b {
-                                +"All previous data on that sheet will be deleted!"
+                                +"All previous data on that sheet will be kept!"
                             }
                         }
                         p {
@@ -109,10 +109,10 @@ fun Application.module(testing: Boolean = false) {
                     )
 
                     if (insertedSales.isBlank() || insertedOutStanding.isBlank()) {
-                        call.respondText("""<b>Error inserting Invoices</b>""", ContentType.Text.Html)
+                        call.respondText("""<b>Error inserting pending and/or outstanding Invoices</b>""", ContentType.Text.Html)
                     } else {
                         call.respondText(
-                            """Data successfully inserted SalesInvoices, click <a href="https://docs.google.com/spreadsheets/d/$insertedSales/edit?usp=sharing">here</a> to open""",
+                            """Data successfully inserted, click <a href="https://docs.google.com/spreadsheets/d/$insertedSales/edit?usp=sharing">here</a> to open""",
                             ContentType.Text.Html
                         )
                     }
