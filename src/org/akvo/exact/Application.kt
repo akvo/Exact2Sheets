@@ -141,7 +141,7 @@ private suspend fun getInvoicesFromExact(
             protocol = URLProtocol.HTTPS
             host = EXACT_HOST
             encodedPath =
-                "/api/v1/$division/salesinvoice/SalesInvoices?\$filter=Status+lt+50&\$select=AmountDC,Currency,Description,InvoiceToContactPersonNameFullName,InvoiceToName,OrderDate"
+                "/api/v1/$division/salesinvoice/SalesInvoices?\$filter=Status+lt+50&\$select=AmountDC,Currency,Description,InvoiceToContactPersonFullName,InvoiceToName,OrderDate"
         }
         contentType(ContentType.Application.Json)
         headers {
