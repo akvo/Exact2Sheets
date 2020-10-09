@@ -2,17 +2,17 @@ package org.akvo.exact
 
 import com.google.gson.annotations.SerializedName
 
-data class InvoicesResult (
+data class SalesInvoicesResult (
 
-    @SerializedName("d") val d : D
+    @SerializedName("d") val d : SalesD
 )
 
-data class D (
+data class SalesD (
 
-    @SerializedName("results") val results : List<Invoice>
+    @SerializedName("results") val results : List<SalesInvoice>
 )
 
-data class Invoice (
+data class SalesInvoice (
 
     @SerializedName("AmountDC") val amountDC : Double?,
     @SerializedName("Currency") val currency : String?,

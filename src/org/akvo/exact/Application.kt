@@ -8,9 +8,7 @@ import io.ktor.auth.*
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
 import io.ktor.client.features.json.JsonFeature
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.request.headers
+import io.ktor.client.request.*
 import io.ktor.config.HoconApplicationConfig
 import io.ktor.html.respondHtml
 import io.ktor.http.ContentType
@@ -27,6 +25,7 @@ import kotlinx.html.*
 
 private const val SERVER_NAME = "IdentityServer4"
 private const val EXACT_REDIRECT_URL = "https://exact.akvotest.org/oauth"
+//private const val EXACT_REDIRECT_URL = "http://localhost:8080/oauth" for test
 private const val EXACT_HOST = "start.exactonline.nl"
 
 @KtorExperimentalAPI
@@ -100,13 +99,20 @@ fun Application.module(testing: Boolean = false) {
                     }
 
                     val invoicesResult = getInvoicesFromExact(client, principal)
-                    val insertedId = SpreadSheetDataSource().insertToSheet(SpreadSheetDataMapper().invoicesToStrings(invoicesResult))
+                    val insertedSales = SpreadSheetDataSource().insertToSheet(
+                        SpreadSheetDataMapper().salesInvoicesToStrings(invoicesResult.first),
+                        RANGE_SHEET1
+                    )
+                    val insertedOutStanding = SpreadSheetDataSource().insertToSheet(
+                        SpreadSheetDataMapper().outStandingInvoicesToStrings(invoicesResult.second),
+                        RANGE_SHEET2
+                    )
 
-                    if (insertedId.isBlank()) {
-                        call.respondText("""<b>Error inserting SalesInvoices</b>""", ContentType.Text.Html)
+                    if (insertedSales.isBlank() || insertedOutStanding.isBlank()) {
+                        call.respondText("""<b>Error inserting Invoices</b>""", ContentType.Text.Html)
                     } else {
                         call.respondText(
-                            """Data successfully inserted SalesInvoices, click <a href="https://docs.google.com/spreadsheets/d/$insertedId/edit?usp=sharing">here</a> to open""",
+                            """Data successfully inserted SalesInvoices, click <a href="https://docs.google.com/spreadsheets/d/$insertedSales/edit?usp=sharing">here</a> to open""",
                             ContentType.Text.Html
                         )
                     }
@@ -119,7 +125,7 @@ fun Application.module(testing: Boolean = false) {
 private suspend fun getInvoicesFromExact(
     client: HttpClient,
     principal: OAuthAccessTokenResponse.OAuth2?
-): InvoicesResult {
+): Pair<SalesInvoicesResult, OutstandingInvoicesResult> {
     val divisionResult = client.get<DivisionResult> {
         url {
             protocol = URLProtocol.HTTPS
@@ -135,18 +141,28 @@ private suspend fun getInvoicesFromExact(
     //make them select the division?
     val division = divisionResult.d.results[0].currentDivision
     print("Your division is $division\n")
-    return client.get {
+    val salesInvoices = client.get<SalesInvoicesResult> {
+        buildRequest(principal, "/api/v1/$division/salesinvoice/SalesInvoices?\$filter=Status+lt+50&\$select=AmountDC,Currency,Description,InvoiceToContactPersonFullName,InvoiceToName,OrderDate")
+    }
 
-        url {
-            protocol = URLProtocol.HTTPS
-            host = EXACT_HOST
-            encodedPath =
-                "/api/v1/$division/salesinvoice/SalesInvoices?\$filter=Status+lt+50&\$select=AmountDC,Currency,Description,InvoiceToContactPersonFullName,InvoiceToName,OrderDate"
-        }
-        contentType(ContentType.Application.Json)
-        headers {
-            header("Authorization", "Bearer ${principal?.accessToken}")
-        }
+    val outstandingInvoices = client.get<OutstandingInvoicesResult> {
+        buildRequest(principal, "/api/v1/$division/read/financial/OutstandingInvoicesOverview")
+    }
+    return Pair(salesInvoices, outstandingInvoices)
+}
+
+private fun HttpRequestBuilder.buildRequest(
+    principal: OAuthAccessTokenResponse.OAuth2?,
+    path: String
+) {
+    url {
+        protocol = URLProtocol.HTTPS
+        host = EXACT_HOST
+        encodedPath = path
+    }
+    contentType(ContentType.Application.Json)
+    headers {
+        header("Authorization", "Bearer ${principal?.accessToken}")
     }
 }
 

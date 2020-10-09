@@ -7,7 +7,7 @@ class SpreadSheetDataMapper {
 
     private val simpleDateFormat = SimpleDateFormat("MM-dd-yyyy")
 
-    fun invoicesToStrings(result: InvoicesResult): MutableList<List<String>> {
+    fun salesInvoicesToStrings(result: SalesInvoicesResult): MutableList<List<String>> {
         val invoices = result.d.results
         val values = mutableListOf<List<String>>()
         values.add(
@@ -32,6 +32,32 @@ class SpreadSheetDataMapper {
                     amount,
                     invoice.currency ?: "",
                     formattedDate
+                )
+            )
+        }
+        return values
+    }
+
+    fun outStandingInvoicesToStrings(result: OutstandingInvoicesResult): MutableList<List<String>> {
+        val invoices = result.d.results
+        val values = mutableListOf<List<String>>()
+        values.add(
+            listOf(
+                "OutstandingReceivableInvoiceCount",
+                "OutstandingReceivableInvoiceAmount",
+                "OverdueReceivableInvoiceCount",
+                "OverdueReceivableInvoiceAmount",
+                "CurrencyCode"
+            )
+        )
+        for (invoice in invoices) {
+            values.add(
+                listOf(
+                    invoice.outstandingReceivableInvoiceCount?.toString() ?: "",
+                    invoice.outstandingReceivableInvoiceAmount?.toString()  ?: "",
+                    invoice.overdueReceivableInvoiceCount?.toString()  ?: "",
+                    invoice.overdueReceivableInvoiceAmount?.toString()  ?: "",
+                    invoice.currencyCode ?: ""
                 )
             )
         }

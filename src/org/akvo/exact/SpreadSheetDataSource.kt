@@ -13,9 +13,11 @@ import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.GoogleCredentials
 
 const val GOOGLE_SHEET_ID = "1RpsFsmLCOfNmeRLDOiEzvQqBF1uhMAeJQB8ZicQExlE"
+//const val GOOGLE_SHEET_ID = "1GfYvGOfCFSeGBtHzjjh0FWQPwKfdlzJPINEetTMshz8" //for tests
 
 private const val APPLICATION_NAME = "exact2sheets"
-private const val RANGE = "Sheet1!A1:Z1000"
+const val RANGE_SHEET1 = "Sheet1!A1:Z1000"
+const val RANGE_SHEET2 = "Sheet2!A1:Z1000"
 
 class SpreadSheetDataSource {
     private val transport = GoogleNetHttpTransport.newTrustedTransport()
@@ -32,12 +34,15 @@ class SpreadSheetDataSource {
             .build()
 
 
-    fun insertToSheet(values: MutableList<List<String>>): String {
+    fun insertToSheet(
+        values: MutableList<List<String>>,
+        sheetRange: String
+    ): String {
         val spreadsheetId = getSheetId(false)
 
         val valueRange = ValueRange()
         valueRange.majorDimension = "ROWS"
-        valueRange.range = RANGE
+        valueRange.range = sheetRange
         @Suppress("UNCHECKED_CAST")
         valueRange.setValues(values as List<MutableList<Any>>?)
         val data: List<ValueRange> = mutableListOf(valueRange)
@@ -46,7 +51,7 @@ class SpreadSheetDataSource {
         requestBody.data = data
         requestBody.valueInputOption = "USER_ENTERED"
         return try {
-            sheetsService.spreadsheets().values().clear(spreadsheetId, RANGE, ClearValuesRequest()).execute()
+            sheetsService.spreadsheets().values().clear(spreadsheetId, sheetRange, ClearValuesRequest()).execute()
             sheetsService.spreadsheets().values().batchUpdate(spreadsheetId, requestBody).execute()
             updateSpreadSheetPermissions(spreadsheetId)
             println("Data successfully inserted to spreadsheet ID: $spreadsheetId")
