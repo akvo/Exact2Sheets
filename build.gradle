@@ -41,11 +41,11 @@ dependencies {
     implementation "io.ktor:ktor-client-apache:$ktor_version"
     implementation "io.ktor:ktor-html-builder:$ktor_version"
     implementation "io.ktor:ktor-client-gson:$ktor_version"
-    implementation 'com.google.apis:google-api-services-sheets:v4-rev516-1.23.0'
-    implementation 'com.google.apis:google-api-services-drive:v3-rev197-1.25.0'
-    implementation 'com.google.oauth-client:google-oauth-client-jetty:1.23.0'
-    implementation 'com.google.auth:google-auth-library-oauth2-http:0.17.1'
-    implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.13.0"
+    implementation "com.google.apis:google-api-services-sheets:$sheets_api_version"
+    implementation "com.google.apis:google-api-services-drive:$drive_api_version"
+    implementation "com.google.oauth-client:google-oauth-client-jetty:$google_auth_jetty_version"
+    implementation "com.google.auth:google-auth-library-oauth2-http:$google_auth2_version"
+    implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime:$kotlinx_serialization_version"
 
     testImplementation "io.ktor:ktor-server-tests:$ktor_version"
 }
