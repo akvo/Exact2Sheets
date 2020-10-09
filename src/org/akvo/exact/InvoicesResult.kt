@@ -15,8 +15,9 @@ data class D (
 data class Invoice (
 
     @SerializedName("AmountDC") val amountDC : Double,
+    @SerializedName("Currency") val currency : String,
+    @SerializedName("Description") val description : String,
+    @SerializedName("InvoiceToContactPersonFullName") val invoiceToContactPerson : String,
     @SerializedName("InvoiceToName") val invoiceToName : String,
-    @SerializedName("OrderDate") val orderDate : String,
-    @SerializedName("OrderNumber") val orderNumber : Int,
-    @SerializedName("Currency") val currency : String
+    @SerializedName("OrderDate") val orderDate : String
 )

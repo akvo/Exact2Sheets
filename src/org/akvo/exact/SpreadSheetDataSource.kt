@@ -11,8 +11,6 @@ import com.google.api.services.sheets.v4.SheetsScopes
 import com.google.api.services.sheets.v4.model.*
 import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.GoogleCredentials
-import java.text.SimpleDateFormat
-import java.util.*
 
 const val GOOGLE_SHEET_ID = "1RpsFsmLCOfNmeRLDOiEzvQqBF1uhMAeJQB8ZicQExlE"
 
@@ -33,10 +31,8 @@ class SpreadSheetDataSource {
             .setApplicationName(APPLICATION_NAME)
             .build()
 
-    private val simpleDateFormat = SimpleDateFormat("dd-MM-yyyy")
 
-    fun insertToSheet(result: InvoicesResult): String {
-        val values = getDataToInsert(result)
+    fun insertToSheet(values: MutableList<List<String>>): String {
         val spreadsheetId = getSheetId(false)
 
         val valueRange = ValueRange()
@@ -49,15 +45,15 @@ class SpreadSheetDataSource {
         val requestBody = BatchUpdateValuesRequest()
         requestBody.data = data
         requestBody.valueInputOption = "USER_ENTERED"
-        try {
+        return try {
             sheetsService.spreadsheets().values().clear(spreadsheetId, RANGE, ClearValuesRequest()).execute()
             sheetsService.spreadsheets().values().batchUpdate(spreadsheetId, requestBody).execute()
             updateSpreadSheetPermissions(spreadsheetId)
             println("Data successfully inserted to spreadsheet ID: $spreadsheetId")
-            return spreadsheetId
+            spreadsheetId
         } catch (e: Exception) {
             System.err.print(e)
-            return ""
+            ""
         }
     }
 
@@ -70,20 +66,6 @@ class SpreadSheetDataSource {
         permission.type = "domain"
         permission.role = "writer"
         driveService.permissions().create(spreadsheetId, permission).execute()
-    }
-
-    private fun getDataToInsert(result: InvoicesResult): MutableList<List<String>> {
-        val invoices = result.d.results
-        val values = mutableListOf<List<String>>()
-        values.add(listOf("OrderNumber", "InvoiceToName", "Amount", "Currency", "OrderDate"))
-        for (invoice in invoices) {
-            val amount = invoice.amountDC.toString()
-            val replace = invoice.orderDate.replace("/Date(", "").replace(")/", "")
-            val date = Date(replace.toLong())
-            val formattedDate = simpleDateFormat.format(date)
-            values.add(listOf(invoice.orderNumber.toString(), invoice.invoiceToName, amount, invoice.currency, formattedDate))
-        }
-        return values
     }
 
     private fun getSheetId(createNew: Boolean): String {

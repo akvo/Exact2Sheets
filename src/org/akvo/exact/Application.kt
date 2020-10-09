@@ -100,13 +100,13 @@ fun Application.module(testing: Boolean = false) {
                     }
 
                     val invoicesResult = getInvoicesFromExact(client, principal)
-                    val insertedId = SpreadSheetDataSource().insertToSheet(invoicesResult)
+                    val insertedId = SpreadSheetDataSource().insertToSheet(SpreadSheetDataMapper().invoicesToStrings(invoicesResult))
 
                     if (insertedId.isBlank()) {
-                        call.respondText("""<b>Error inserting data</b>""", ContentType.Text.Html)
+                        call.respondText("""<b>Error inserting SalesInvoices</b>""", ContentType.Text.Html)
                     } else {
                         call.respondText(
-                            """Data successfully inserted, click <a href="https://docs.google.com/spreadsheets/d/$insertedId/edit?usp=sharing">here</a> to open""",
+                            """Data successfully inserted SalesInvoices, click <a href="https://docs.google.com/spreadsheets/d/$insertedId/edit?usp=sharing">here</a> to open""",
                             ContentType.Text.Html
                         )
                     }
@@ -141,7 +141,7 @@ private suspend fun getInvoicesFromExact(
             protocol = URLProtocol.HTTPS
             host = EXACT_HOST
             encodedPath =
-                "/api/v1/$division/salesinvoice/SalesInvoices?\$filter=Status+lt+50&\$select=OrderNumber,InvoiceToName,AmountDC,OrderDate,Currency"
+                "/api/v1/$division/salesinvoice/SalesInvoices?\$filter=Status+lt+50&\$select=AmountDC,Currency,Description,InvoiceToContactPersonNameFullName,InvoiceToName,OrderDate"
         }
         contentType(ContentType.Application.Json)
         headers {
