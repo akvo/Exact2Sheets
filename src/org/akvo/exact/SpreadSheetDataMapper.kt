@@ -12,12 +12,12 @@ class SpreadSheetDataMapper {
         val values = mutableListOf<List<String>>()
         values.add(
             listOf(
-                "Description",
+                "Project",
                 "Payers Name",
-                "InvoiceToContactPersonName",
+                "Contact Person",
                 "Amount",
                 "Currency",
-                "OrderDate"
+                "To be sent date"
             )
         )
         for (invoice in invoices) {
