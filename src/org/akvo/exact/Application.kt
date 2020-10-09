@@ -43,9 +43,6 @@ val clientSettings = OAuthServerSettings.OAuth2ServerSettings(
     requestMethod = HttpMethod.Post // must POST to token endpoint
 )
 
-@KtorExperimentalAPI
-val googleToken = config.property("ktor.secret.googleToken").getString()
-
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
 @KtorExperimentalAPI
@@ -56,7 +53,7 @@ fun Application.module(testing: Boolean = false) {
     embeddedServer(Netty, 8080) {
 
         install(Authentication) {
-            oauth("IdentityServer4") {
+            oauth(SERVER_NAME) {
                 client = HttpClient(Apache)
                 providerLookup = { clientSettings }
                 urlProvider = { EXACT_REDIRECT_URL } //redirect_url

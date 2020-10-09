@@ -75,13 +75,13 @@ class SpreadSheetDataSource {
     private fun getDataToInsert(result: InvoicesResult): MutableList<List<String>> {
         val invoices = result.d.results
         val values = mutableListOf<List<String>>()
-        values.add(listOf("OrderNumber", "InvoiceToName", "Amount", "OrderDate"))
+        values.add(listOf("OrderNumber", "InvoiceToName", "Amount", "Currency", "OrderDate"))
         for (invoice in invoices) {
-            val amount = invoice.amountDC.toString() + invoice.currency
+            val amount = invoice.amountDC.toString()
             val replace = invoice.orderDate.replace("/Date(", "").replace(")/", "")
             val date = Date(replace.toLong())
             val formattedDate = simpleDateFormat.format(date)
-            values.add(listOf(invoice.orderNumber.toString(), invoice.invoiceToName, amount, formattedDate))
+            values.add(listOf(invoice.orderNumber.toString(), invoice.invoiceToName, amount, invoice.currency, formattedDate))
         }
         return values
     }
