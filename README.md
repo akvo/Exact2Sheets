@@ -9,7 +9,7 @@ ktor {
     secret {
       clientId = "your client id"
       clientSecret = "your client secret"
-      googleToken = "your temporary google auth token"
+      redirectUrl = "redirect url as setup in exact app"
     }
 }
 ```

@@ -24,12 +24,13 @@ import io.ktor.util.KtorExperimentalAPI
 import kotlinx.html.*
 
 private const val SERVER_NAME = "IdentityServer4"
-private const val EXACT_REDIRECT_URL = "https://exact.akvotest.org/oauth"
-//private const val EXACT_REDIRECT_URL = "http://localhost:8080/oauth" for test
 private const val EXACT_HOST = "start.exactonline.nl"
 
 @KtorExperimentalAPI
 val config = HoconApplicationConfig(ConfigFactory.load("secret.conf"))
+
+@KtorExperimentalAPI
+val redirectUrl = config.property("ktor.secret.redirectUrl").getString()
 
 @KtorExperimentalAPI
 val clientSettings = OAuthServerSettings.OAuth2ServerSettings(
@@ -55,7 +56,7 @@ fun Application.module(testing: Boolean = false) {
             oauth(SERVER_NAME) {
                 client = HttpClient(Apache)
                 providerLookup = { clientSettings }
-                urlProvider = { EXACT_REDIRECT_URL } //redirect_url
+                urlProvider = { redirectUrl } //redirect_url
             }
         }
 
