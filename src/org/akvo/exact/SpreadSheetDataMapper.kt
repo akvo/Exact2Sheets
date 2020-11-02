@@ -22,8 +22,7 @@ class SpreadSheetDataMapper {
         )
         for (invoice in invoices) {
             val amount: String = invoice.amountDC?.toString() ?: ""
-            val date: Date? = invoice.orderDate?.replace("/Date(", "")?.replace(")/", "")?.toLong()?.let { Date(it) }
-            val formattedDate: String = if (date != null) simpleDateFormat.format(date) else ""
+            val formattedDate: String = formattedDate(invoice.orderDate)
             values.add(
                 listOf(
                     invoice.description ?: "",
@@ -38,26 +37,37 @@ class SpreadSheetDataMapper {
         return values
     }
 
-    fun outStandingInvoicesToStrings(result: OutstandingInvoicesResult): MutableList<List<String>> {
+    private fun formattedDate(dateString: String?): String {
+        val date: Date? = dateString?.replace("/Date(", "")?.replace(")/", "")?.toLong()?.let { Date(it) }
+        return if (date != null) simpleDateFormat.format(date) else ""
+    }
+
+    fun receivableInvoicesToStrings(result: ReceivableInvoicesResult): MutableList<List<String>> {
         val invoices = result.d.results
         val values = mutableListOf<List<String>>()
         values.add(
             listOf(
-                "OutstandingReceivableInvoiceCount",
-                "OutstandingReceivableInvoiceAmount",
-                "OverdueReceivableInvoiceCount",
-                "OverdueReceivableInvoiceAmount",
-                "CurrencyCode"
+                "Account Name",
+                "Amount",
+                "Currency",
+                "Description",
+                "Due Date",
+                "Invoice Date",
+                "Invoice Number"
             )
         )
         for (invoice in invoices) {
+            val formattedDueDate: String = formattedDate(invoice.dueDate)
+            val formattedInvoiceDate: String = formattedDate(invoice.invoiceDate)
             values.add(
                 listOf(
-                    invoice.outstandingReceivableInvoiceCount?.toString() ?: "",
-                    invoice.outstandingReceivableInvoiceAmount?.toString()  ?: "",
-                    invoice.overdueReceivableInvoiceCount?.toString()  ?: "",
-                    invoice.overdueReceivableInvoiceAmount?.toString()  ?: "",
-                    invoice.currencyCode ?: ""
+                    invoice.accountName ?: "",
+                    invoice.amount?.toString() ?: "",
+                    invoice.currencyCode ?: "",
+                    invoice.description ?: "",
+                    formattedDueDate,
+                    formattedInvoiceDate,
+                    invoice.invoiceNumber?.toString() ?: ""
                 )
             )
         }

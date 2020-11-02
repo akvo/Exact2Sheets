@@ -103,12 +103,12 @@ fun Application.module(testing: Boolean = false) {
                         SpreadSheetDataMapper().salesInvoicesToStrings(invoicesResult.first),
                         RANGE_SHEET1
                     )
-                    val insertedOutStanding = SpreadSheetDataSource().insertToSheet(
-                        SpreadSheetDataMapper().outStandingInvoicesToStrings(invoicesResult.second),
+                    val insertedReceivables = SpreadSheetDataSource().insertToSheet(
+                        SpreadSheetDataMapper().receivableInvoicesToStrings(invoicesResult.second),
                         RANGE_SHEET2
                     )
 
-                    if (insertedSales.isBlank() || insertedOutStanding.isBlank()) {
+                    if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
                         call.respondText("""<b>Error inserting pending and/or outstanding Invoices</b>""", ContentType.Text.Html)
                     } else {
                         call.respondText(
@@ -125,7 +125,7 @@ fun Application.module(testing: Boolean = false) {
 private suspend fun getInvoicesFromExact(
     client: HttpClient,
     principal: OAuthAccessTokenResponse.OAuth2?
-): Pair<SalesInvoicesResult, OutstandingInvoicesResult> {
+): Pair<SalesInvoicesResult, ReceivableInvoicesResult> {
     val divisionResult = client.get<DivisionResult> {
         url {
             protocol = URLProtocol.HTTPS
@@ -137,18 +137,16 @@ private suspend fun getInvoicesFromExact(
             header("Authorization", "Bearer ${principal?.accessToken}")
         }
     }
-    //get first division????
-    //make them select the division?
     val division = divisionResult.d.results[0].currentDivision
     print("Your division is $division\n")
     val salesInvoices = client.get<SalesInvoicesResult> {
         buildRequest(principal, "/api/v1/$division/salesinvoice/SalesInvoices?\$filter=Status+lt+50&\$select=AmountDC,Currency,Description,InvoiceToContactPersonFullName,InvoiceToName,OrderDate")
     }
 
-    val outstandingInvoices = client.get<OutstandingInvoicesResult> {
-        buildRequest(principal, "/api/v1/$division/read/financial/OutstandingInvoicesOverview")
+    val receivableInvoices = client.get<ReceivableInvoicesResult> {
+        buildRequest(principal, "/api/v1/$division/read/financial/ReceivablesList?\$select=AccountName,Amount,CurrencyCode,Description,DueDate,InvoiceDate,InvoiceNumber")
     }
-    return Pair(salesInvoices, outstandingInvoices)
+    return Pair(salesInvoices, receivableInvoices)
 }
 
 private fun HttpRequestBuilder.buildRequest(
