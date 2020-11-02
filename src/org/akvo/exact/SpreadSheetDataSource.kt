@@ -12,12 +12,12 @@ import com.google.api.services.sheets.v4.model.*
 import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.GoogleCredentials
 
-const val GOOGLE_SHEET_ID = "1RpsFsmLCOfNmeRLDOiEzvQqBF1uhMAeJQB8ZicQExlE"
-//const val GOOGLE_SHEET_ID = "1GfYvGOfCFSeGBtHzjjh0FWQPwKfdlzJPINEetTMshz8" //for tests
+//const val GOOGLE_SHEET_ID = "1RpsFsmLCOfNmeRLDOiEzvQqBF1uhMAeJQB8ZicQExlE"
+const val GOOGLE_SHEET_ID = "1GfYvGOfCFSeGBtHzjjh0FWQPwKfdlzJPINEetTMshz8" //for tests
 
 private const val APPLICATION_NAME = "exact2sheets"
-const val RANGE_SHEET1 = "Sheet1!A1:Z1000"
-const val RANGE_SHEET2 = "Sheet2!A1:Z1000"
+const val RANGE_SHEET1 = "Invoices!A1:Z1000"
+const val RANGE_SHEET2 = "Receivables!A1:Z1000"
 
 class SpreadSheetDataSource {
     private val transport = GoogleNetHttpTransport.newTrustedTransport()
