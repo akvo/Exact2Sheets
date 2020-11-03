@@ -47,13 +47,13 @@ class SpreadSheetDataMapper {
         val values = mutableListOf<List<String>>()
         values.add(
             listOf(
-                "Account Name",
+                "Project name",
+                "Payers name",
                 "Amount",
                 "Currency",
-                "Description",
-                "Due Date",
-                "Invoice Date",
-                "Invoice Number"
+                "Invoice number",
+                "Invoice date",
+                "Due date"
             )
         )
         for (invoice in invoices) {
@@ -61,13 +61,13 @@ class SpreadSheetDataMapper {
             val formattedInvoiceDate: String = formattedDate(invoice.invoiceDate)
             values.add(
                 listOf(
+                    invoice.description ?: "",
                     invoice.accountName ?: "",
                     invoice.amount?.toString() ?: "",
                     invoice.currencyCode ?: "",
-                    invoice.description ?: "",
-                    formattedDueDate,
+                    invoice.invoiceNumber?.toString() ?: "",
                     formattedInvoiceDate,
-                    invoice.invoiceNumber?.toString() ?: ""
+                    formattedDueDate
                 )
             )
         }
