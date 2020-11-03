@@ -46,6 +46,7 @@ dependencies {
     implementation "com.google.oauth-client:google-oauth-client-jetty:$google_auth_jetty_version"
     implementation "com.google.auth:google-auth-library-oauth2-http:$google_auth2_version"
     implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime:$kotlinx_serialization_version"
+    implementation "io.sentry:sentry:$sentry_version"
 
     testImplementation "io.ktor:ktor-server-tests:$ktor_version"
 }
