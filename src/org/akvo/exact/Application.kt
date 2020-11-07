@@ -1,12 +1,11 @@
 package org.akvo.exact
 
-import com.typesafe.config.*
+import com.google.gson.Gson
+import com.typesafe.config.ConfigFactory
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.client.*
 import io.ktor.client.engine.apache.*
-import io.ktor.client.features.json.*
-import io.ktor.client.request.*
 import io.ktor.config.*
 import io.ktor.html.*
 import io.ktor.http.*
@@ -15,13 +14,20 @@ import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.util.*
-import io.sentry.*
-import io.sentry.Sentry.*
-import kotlinx.html.*
-
+import io.sentry.Sentry
+import io.sentry.Sentry.init
+import io.sentry.SentryOptions
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.html.a
+import kotlinx.html.b
+import kotlinx.html.body
+import kotlinx.html.head
+import kotlinx.html.p
+import kotlinx.html.title
 
 private const val SERVER_NAME = "IdentityServer4"
-private const val EXACT_HOST = "start.exactonline.nl"
 
 @KtorExperimentalAPI
 val secrets = HoconApplicationConfig(ConfigFactory.load("secret.conf"))
@@ -39,6 +45,9 @@ val clientSettings = OAuthServerSettings.OAuth2ServerSettings(
     accessTokenRequiresBasicAuth = false, // basic auth implementation is not "OAuth style" so falling back to post body
     requestMethod = HttpMethod.Post // must POST to token endpoint
 )
+
+private val exactApiDataSource = ExactApiDataSource()
+private val spreadSheetDataSource = SpreadSheetDataSource()
 
 @Suppress("unused")
 @KtorExperimentalAPI
@@ -98,22 +107,13 @@ fun Application.module(testing: Boolean = false) {
                 get("/oauth") {
                     val principal = call.authentication.principal<OAuthAccessTokenResponse.OAuth2>()
 
-                    val client = HttpClient(Apache) {
-                        install(JsonFeature)
-                    }
-
-                    val invoicesResult = getInvoicesFromExact(client, principal)
-                    val insertedSales = SpreadSheetDataSource().insertToSheet(
-                        SpreadSheetDataMapper().salesInvoicesToStrings(invoicesResult.first),
-                        RANGE_SHEET1
-                    )
-                    val insertedReceivables = SpreadSheetDataSource().insertToSheet(
-                        SpreadSheetDataMapper().receivableInvoicesToStrings(invoicesResult.second),
-                        RANGE_SHEET2
-                    )
-
+                    val (insertedSales, insertedReceivables) = refreshExactData(principal?.accessToken)
+                    schedulePeriodicTask(principal)
                     if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
-                        call.respondText("""<b>Error inserting pending and/or outstanding Invoices</b>""", ContentType.Text.Html)
+                        call.respondText(
+                            """<b>Error inserting pending and/or outstanding Invoices</b>""",
+                            ContentType.Text.Html
+                        )
                     } else {
                         call.respondText(
                             """Data successfully inserted, click <a href="https://docs.google.com/spreadsheets/d/$insertedSales/edit?usp=sharing">here</a> to open""",
@@ -126,45 +126,41 @@ fun Application.module(testing: Boolean = false) {
     }.start(wait = true)
 }
 
-private suspend fun getInvoicesFromExact(
-    client: HttpClient,
-    principal: OAuthAccessTokenResponse.OAuth2?
-): Pair<SalesInvoicesResult, ReceivableInvoicesResult> {
-    val divisionResult = client.get<DivisionResult> {
-        url {
-            protocol = URLProtocol.HTTPS
-            host = EXACT_HOST
-            encodedPath = "/api/v1/current/Me?\$select=CurrentDivision"
-        }
-        contentType(ContentType.Application.Json)
-        headers {
-            header("Authorization", "Bearer ${principal?.accessToken}")
-        }
-    }
-    val division = divisionResult.d.results[0].currentDivision
-    print("Your division is $division\n")
-    val salesInvoices = client.get<SalesInvoicesResult> {
-        buildRequest(principal, "/api/v1/$division/salesinvoice/SalesInvoices?\$filter=Status+lt+50&\$select=AmountDC,Currency,Description,InvoiceToContactPersonFullName,InvoiceToName,OrderDate")
-    }
+private suspend fun refreshExactData(accessToken: String?): Pair<String, String> {
 
-    val receivableInvoices = client.get<ReceivableInvoicesResult> {
-        buildRequest(principal, "/api/v1/$division/read/financial/ReceivablesList?\$select=AccountName,Amount,CurrencyCode,Description,DueDate,InvoiceDate,InvoiceNumber")
-    }
-    return Pair(salesInvoices, receivableInvoices)
+    val invoicesResult = exactApiDataSource.getInvoicesFromExact(accessToken)
+    val insertedSales = spreadSheetDataSource.insertToSheet(
+        SpreadSheetDataMapper().salesInvoicesToStrings(invoicesResult.first),
+        RANGE_SHEET1
+    )
+    val insertedReceivables = spreadSheetDataSource.insertToSheet(
+        SpreadSheetDataMapper().receivableInvoicesToStrings(invoicesResult.second),
+        RANGE_SHEET2
+    )
+    return Pair(insertedSales, insertedReceivables)
 }
 
-private fun HttpRequestBuilder.buildRequest(
-    principal: OAuthAccessTokenResponse.OAuth2?,
-    path: String
+fun schedulePeriodicTask(principal: OAuthAccessTokenResponse.OAuth2?) {
+    val refreshToken = principal?.refreshToken ?: null
+    refreshToken?.let {
+        var refreshToken = it
+        GlobalScope.launch {
+            refreshData(refreshToken, clientSettings)
+        }
+    }
+}
+
+private suspend fun refreshData(
+    refreshToken: String,
+    clientSettings: OAuthServerSettings.OAuth2ServerSettings
 ) {
-    url {
-        protocol = URLProtocol.HTTPS
-        host = EXACT_HOST
-        encodedPath = path
-    }
-    contentType(ContentType.Application.Json)
-    headers {
-        header("Authorization", "Bearer ${principal?.accessToken}")
+    val refreshTokenResponse = exactApiDataSource.refreshToken(refreshToken, clientSettings)
+    val accessToken = refreshTokenResponse.accessToken
+    // save new refreshTokenResponse.refreshToken
+    val (insertedSales, insertedReceivables) = refreshExactData(accessToken)
+    if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
+        Sentry.captureException(Exception("Error updating exact data"))
+    } else {
+        println("Data updated successfully")
     }
 }
-
