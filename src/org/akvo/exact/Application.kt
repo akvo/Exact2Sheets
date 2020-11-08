@@ -129,13 +129,6 @@ fun Application.module(testing: Boolean = false) {
     }.start(wait = true)
 }
 
-private suspend fun refreshExactData(accessToken: String?): Pair<String, String> {
-    val invoicesResult = exactRepository.getInvoicesFromExact(accessToken)
-    val insertedSales = sheetRepository.insertSalesInvoices(invoicesResult.first)
-    val insertedReceivables = sheetRepository.insertReceivablesInvoices(invoicesResult.second)
-    return Pair(insertedSales, insertedReceivables)
-}
-
 fun schedulePeriodicTask(principal: OAuthAccessTokenResponse.OAuth2?) {
     val refreshToken = principal?.refreshToken ?: null
     refreshToken?.let {
@@ -145,11 +138,15 @@ fun schedulePeriodicTask(principal: OAuthAccessTokenResponse.OAuth2?) {
     }
 }
 
-private suspend fun refreshData(
-    refreshToken: String,
-    clientSettings: OAuthServerSettings.OAuth2ServerSettings
-) {
-    val refreshTokenResponse = exactRepository.refreshToken(refreshToken, clientSettings)
+private suspend fun refreshExactData(accessToken: String?): Pair<String, String> {
+    val invoicesResult = exactRepository.getInvoicesFromExact(accessToken)
+    val insertedSales = sheetRepository.insertSalesInvoices(invoicesResult.first)
+    val insertedReceivables = sheetRepository.insertReceivablesInvoices(invoicesResult.second)
+    return Pair(insertedSales, insertedReceivables)
+}
+
+private suspend fun refreshData(refreshToken: String, oauthSettings: OAuthServerSettings.OAuth2ServerSettings) {
+    val refreshTokenResponse = exactRepository.refreshToken(refreshToken, oauthSettings)
     val accessToken = refreshTokenResponse.accessToken
     // save new refreshTokenResponse.refreshToken
     val (insertedSales, insertedReceivables) = refreshExactData(accessToken)
