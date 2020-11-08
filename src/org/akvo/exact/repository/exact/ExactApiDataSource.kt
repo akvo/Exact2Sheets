@@ -1,12 +1,15 @@
-package org.akvo.exact
+package org.akvo.exact.repository.exact
 
-import io.ktor.auth.*
 import io.ktor.client.*
 import io.ktor.client.engine.apache.*
 import io.ktor.client.features.json.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
+import org.akvo.exact.repository.exact.api.DivisionResult
+import org.akvo.exact.repository.exact.api.ReceivableInvoicesResult
+import org.akvo.exact.repository.exact.api.RefreshTokenResponse
+import org.akvo.exact.repository.exact.api.SalesInvoicesResult
 
 private const val EXACT_HOST = "start.exactonline.nl"
 
@@ -16,20 +19,7 @@ class ExactApiDataSource {
         install(JsonFeature)
     }
 
-    suspend fun getInvoicesFromExact(
-        accessToken: String?
-    ): Pair<SalesInvoicesResult, ReceivableInvoicesResult> {
-
-        val division = getUserDivision(client, accessToken)
-        val salesInvoices = getSalesInvoices(client, division, accessToken)
-        val receivableInvoices = getReceivableInvoices(client, division, accessToken)
-        return Pair(salesInvoices, receivableInvoices)
-    }
-
-    suspend fun refreshToken(
-        refreshToken: String,
-        oauthSettings: OAuthServerSettings.OAuth2ServerSettings
-    ): RefreshTokenResponse {
+    suspend fun refreshToken(refreshToken: String, clientId: String, clientSecret: String): RefreshTokenResponse {
         try {
             return client.post {
                 url {
@@ -40,8 +30,8 @@ class ExactApiDataSource {
                 body = FormDataContent(Parameters.build {
                     append("refresh_token", refreshToken)
                     append("grant_type", "refresh_token")
-                    append("client_id", oauthSettings.clientId)
-                    append("client_secret", oauthSettings.clientSecret)
+                    append("client_id", clientId)
+                    append("client_secret", clientSecret)
                 })
             }
         } catch (e: Exception) {
@@ -50,11 +40,7 @@ class ExactApiDataSource {
         }
     }
 
-    private suspend fun getReceivableInvoices(
-        client: HttpClient,
-        division: Int,
-        accessToken: String?
-    ): ReceivableInvoicesResult {
+    suspend fun getReceivableInvoices(division: Int, accessToken: String?): ReceivableInvoicesResult {
         return client.get {
             val basePath = "/api/v1/$division/read/financial/ReceivablesList"
             val select = "AccountName,Amount,CurrencyCode,Description,DueDate,InvoiceDate,InvoiceNumber"
@@ -65,7 +51,7 @@ class ExactApiDataSource {
         }
     }
 
-    private suspend fun getSalesInvoices(client: HttpClient, division: Int, accessToken: String?): SalesInvoicesResult {
+    suspend fun getSalesInvoices(division: Int, accessToken: String?): SalesInvoicesResult {
         return client.get {
             val basePath = "/api/v1/$division/salesinvoice/SalesInvoices"
             val filter = "Status+lt+50"
@@ -77,7 +63,7 @@ class ExactApiDataSource {
         }
     }
 
-    private suspend fun getUserDivision(client: HttpClient, accessToken: String?): Int {
+    suspend fun getUserDivision(accessToken: String?): Int {
         val divisionResult = client.get<DivisionResult> {
             url {
                 protocol = URLProtocol.HTTPS

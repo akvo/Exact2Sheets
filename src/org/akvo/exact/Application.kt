@@ -1,6 +1,5 @@
 package org.akvo.exact
 
-import com.google.gson.Gson
 import com.typesafe.config.ConfigFactory
 import io.ktor.application.*
 import io.ktor.auth.*
@@ -18,7 +17,6 @@ import io.sentry.Sentry
 import io.sentry.Sentry.init
 import io.sentry.SentryOptions
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.html.a
 import kotlinx.html.b
@@ -26,6 +24,11 @@ import kotlinx.html.body
 import kotlinx.html.head
 import kotlinx.html.p
 import kotlinx.html.title
+import org.akvo.exact.repository.exact.ExactRepository
+import org.akvo.exact.repository.exact.ExactRepositoryImpl
+import org.akvo.exact.repository.sheets.GOOGLE_SHEET_ID
+import org.akvo.exact.repository.sheets.GoogleSheetRepository
+import org.akvo.exact.repository.sheets.SheetRepository
 
 private const val SERVER_NAME = "IdentityServer4"
 
@@ -46,8 +49,8 @@ val clientSettings = OAuthServerSettings.OAuth2ServerSettings(
     requestMethod = HttpMethod.Post // must POST to token endpoint
 )
 
-private val exactApiDataSource = ExactApiDataSource()
-private val spreadSheetDataSource = SpreadSheetDataSource()
+private val sheetRepository: SheetRepository = GoogleSheetRepository()
+private val exactRepository: ExactRepository = ExactRepositoryImpl()
 
 @Suppress("unused")
 @KtorExperimentalAPI
@@ -127,25 +130,17 @@ fun Application.module(testing: Boolean = false) {
 }
 
 private suspend fun refreshExactData(accessToken: String?): Pair<String, String> {
-
-    val invoicesResult = exactApiDataSource.getInvoicesFromExact(accessToken)
-    val insertedSales = spreadSheetDataSource.insertToSheet(
-        SpreadSheetDataMapper().salesInvoicesToStrings(invoicesResult.first),
-        RANGE_SHEET1
-    )
-    val insertedReceivables = spreadSheetDataSource.insertToSheet(
-        SpreadSheetDataMapper().receivableInvoicesToStrings(invoicesResult.second),
-        RANGE_SHEET2
-    )
+    val invoicesResult = exactRepository.getInvoicesFromExact(accessToken)
+    val insertedSales = sheetRepository.insertSalesInvoices(invoicesResult.first)
+    val insertedReceivables = sheetRepository.insertReceivablesInvoices(invoicesResult.second)
     return Pair(insertedSales, insertedReceivables)
 }
 
 fun schedulePeriodicTask(principal: OAuthAccessTokenResponse.OAuth2?) {
     val refreshToken = principal?.refreshToken ?: null
     refreshToken?.let {
-        var refreshToken = it
         GlobalScope.launch {
-            refreshData(refreshToken, clientSettings)
+            refreshData(it, clientSettings)
         }
     }
 }
@@ -154,7 +149,7 @@ private suspend fun refreshData(
     refreshToken: String,
     clientSettings: OAuthServerSettings.OAuth2ServerSettings
 ) {
-    val refreshTokenResponse = exactApiDataSource.refreshToken(refreshToken, clientSettings)
+    val refreshTokenResponse = exactRepository.refreshToken(refreshToken, clientSettings)
     val accessToken = refreshTokenResponse.accessToken
     // save new refreshTokenResponse.refreshToken
     val (insertedSales, insertedReceivables) = refreshExactData(accessToken)

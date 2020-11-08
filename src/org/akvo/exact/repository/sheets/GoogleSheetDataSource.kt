@@ -1,4 +1,4 @@
-package org.akvo.exact
+package org.akvo.exact.repository.sheets
 
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.HttpRequestInitializer
@@ -20,7 +20,7 @@ private const val APPLICATION_NAME = "exact2sheets"
 const val RANGE_SHEET1 = "Invoices!A1:Z1000"
 const val RANGE_SHEET2 = "Receivables!A1:Z1000"
 
-class SpreadSheetDataSource {
+class GoogleSheetDataSource {
     private val transport = GoogleNetHttpTransport.newTrustedTransport()
     private val jacksonFactory = JacksonFactory.getDefaultInstance()
 
@@ -54,7 +54,7 @@ class SpreadSheetDataSource {
         return try {
             sheetsService.spreadsheets().values().batchUpdate(spreadsheetId, requestBody).execute()
             updateSpreadSheetPermissions(spreadsheetId)
-            println("Data successfully inserted to spreadsheet ID: $spreadsheetId")
+            println("Data successfully inserted to spreadsheet ID: $spreadsheetId, sheet: $sheetRange")
             spreadsheetId
         } catch (e: Exception) {
             System.err.print(e)
