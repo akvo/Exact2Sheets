@@ -24,6 +24,8 @@ import kotlinx.html.body
 import kotlinx.html.head
 import kotlinx.html.p
 import kotlinx.html.title
+import org.akvo.exact.repository.AuthRepository
+import org.akvo.exact.repository.AuthRepositoryImpl
 import org.akvo.exact.repository.exact.ExactRepository
 import org.akvo.exact.repository.exact.ExactRepositoryImpl
 import org.akvo.exact.repository.sheets.GOOGLE_SHEET_ID
@@ -51,6 +53,7 @@ val clientSettings = OAuthServerSettings.OAuth2ServerSettings(
 
 private val sheetRepository: SheetRepository = GoogleSheetRepository()
 private val exactRepository: ExactRepository = ExactRepositoryImpl()
+private val authRepository: AuthRepository = AuthRepositoryImpl()
 
 @Suppress("unused")
 @KtorExperimentalAPI
@@ -71,7 +74,7 @@ fun Application.module(testing: Boolean = false) {
             oauth(SERVER_NAME) {
                 client = HttpClient(Apache)
                 providerLookup = { clientSettings }
-                urlProvider = { redirectUrl } //redirect_url
+                urlProvider = { redirectUrl }
             }
         }
 
@@ -108,10 +111,12 @@ fun Application.module(testing: Boolean = false) {
             }
             authenticate(SERVER_NAME) {
                 get("/oauth") {
+                    val refreshToken = authRepository.loadSavedRefreshToken()
+                    println("Saved token in db found: $refreshToken")
                     val principal = call.authentication.principal<OAuthAccessTokenResponse.OAuth2>()
-
+                    saveTokens(principal)
                     val (insertedSales, insertedReceivables) = refreshExactData(principal?.accessToken)
-                    schedulePeriodicTask(principal)
+                    schedulePeriodicTask()
                     if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
                         call.respondText(
                             """<b>Error inserting pending and/or outstanding Invoices</b>""",
@@ -129,8 +134,8 @@ fun Application.module(testing: Boolean = false) {
     }.start(wait = true)
 }
 
-fun schedulePeriodicTask(principal: OAuthAccessTokenResponse.OAuth2?) {
-    val refreshToken = principal?.refreshToken ?: null
+suspend fun schedulePeriodicTask() {
+    val refreshToken = authRepository.loadSavedRefreshToken()
     refreshToken?.let {
         GlobalScope.launch {
             refreshData(it, clientSettings)
@@ -154,5 +159,13 @@ private suspend fun refreshData(refreshToken: String, oauthSettings: OAuthServer
         Sentry.captureException(Exception("Error updating exact data"))
     } else {
         println("Data updated successfully")
+    }
+}
+
+private suspend fun saveTokens(principal: OAuthAccessTokenResponse.OAuth2?) {
+    principal?.let {
+        principal.refreshToken?.let { refreshToken ->
+            authRepository.saveUser(principal.accessToken, refreshToken)
+        }
     }
 }
