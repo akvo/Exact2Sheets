@@ -17,8 +17,8 @@ const val GOOGLE_SHEET_ID = "1RpsFsmLCOfNmeRLDOiEzvQqBF1uhMAeJQB8ZicQExlE"
 //const val GOOGLE_SHEET_ID = "1GfYvGOfCFSeGBtHzjjh0FWQPwKfdlzJPINEetTMshz8" //for tests
 
 private const val APPLICATION_NAME = "exact2sheets"
-const val RANGE_SHEET1 = "Invoices!A1:Z1000"
-const val RANGE_SHEET2 = "Receivables!A1:Z1000"
+const val RANGE_SHEET1 = "Future Invoices!A1:Z1000"
+const val RANGE_SHEET2 = "Outstanding!A1:Z1000"
 
 class GoogleSheetDataSource {
     private val transport = GoogleNetHttpTransport.newTrustedTransport()

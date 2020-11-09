@@ -12,6 +12,8 @@ class AuthRepositoryImpl: AuthRepository {
         var statement : InsertStatement<Number>? = null
         DataBaseFactory.dbQuery {
             Users.deleteAll()
+        }
+        DataBaseFactory.dbQuery {
             statement = Users.insert { user ->
                 user[Users.token] = token
                 user[Users.refreshToken] = refreshToken

@@ -111,12 +111,9 @@ fun Application.module(testing: Boolean = false) {
             }
             authenticate(SERVER_NAME) {
                 get("/oauth") {
-                    val refreshToken = authRepository.loadSavedRefreshToken()
-                    println("Saved token in db found: $refreshToken")
                     val principal = call.authentication.principal<OAuthAccessTokenResponse.OAuth2>()
                     saveTokens(principal)
                     val (insertedSales, insertedReceivables) = refreshExactData(principal?.accessToken)
-                    schedulePeriodicTask()
                     if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
                         call.respondText(
                             """<b>Error inserting pending and/or outstanding Invoices</b>""",
@@ -130,17 +127,26 @@ fun Application.module(testing: Boolean = false) {
                     }
                 }
             }
+            get("/refresh") {
+                val refreshToken = authRepository.loadSavedRefreshToken()
+                println("Saved token in db found: $refreshToken")
+                refreshToken?.let {
+                    GlobalScope.launch {
+                        val refreshTokenResponse = exactRepository.refreshToken(it, clientSettings)
+                        val accessToken = refreshTokenResponse.accessToken
+                        authRepository.saveUser(accessToken, refreshTokenResponse.refreshToken)
+                        val (insertedSales, insertedReceivables) = refreshExactData(accessToken)
+                        if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
+                            Sentry.captureException(Exception("Error updating exact data"))
+                        } else {
+                            println("Data updated successfully")
+                        }
+                    }
+                }
+                //what if token not found?
+            }
         }
     }.start(wait = true)
-}
-
-suspend fun schedulePeriodicTask() {
-    val refreshToken = authRepository.loadSavedRefreshToken()
-    refreshToken?.let {
-        GlobalScope.launch {
-            refreshData(it, clientSettings)
-        }
-    }
 }
 
 private suspend fun refreshExactData(accessToken: String?): Pair<String, String> {
@@ -150,22 +156,10 @@ private suspend fun refreshExactData(accessToken: String?): Pair<String, String>
     return Pair(insertedSales, insertedReceivables)
 }
 
-private suspend fun refreshData(refreshToken: String, oauthSettings: OAuthServerSettings.OAuth2ServerSettings) {
-    val refreshTokenResponse = exactRepository.refreshToken(refreshToken, oauthSettings)
-    val accessToken = refreshTokenResponse.accessToken
-    // save new refreshTokenResponse.refreshToken
-    val (insertedSales, insertedReceivables) = refreshExactData(accessToken)
-    if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
-        Sentry.captureException(Exception("Error updating exact data"))
-    } else {
-        println("Data updated successfully")
-    }
-}
-
 private suspend fun saveTokens(principal: OAuthAccessTokenResponse.OAuth2?) {
     principal?.let {
         principal.refreshToken?.let { refreshToken ->
-            authRepository.saveUser(principal.accessToken, refreshToken)
+            authRepository.saveUser(token=principal.accessToken, refreshToken=refreshToken)
         }
     }
 }
