@@ -130,20 +130,21 @@ fun Application.module(testing: Boolean = false) {
             get("/refresh") {
                 val refreshToken = authRepository.loadSavedRefreshToken()
                 println("Saved token in db found: $refreshToken")
-                refreshToken?.let {
-                    GlobalScope.launch {
-                        val refreshTokenResponse = exactRepository.refreshToken(it, clientSettings)
-                        val accessToken = refreshTokenResponse.accessToken
-                        authRepository.saveUser(accessToken, refreshTokenResponse.refreshToken)
-                        val (insertedSales, insertedReceivables) = refreshExactData(accessToken)
-                        if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
-                            Sentry.captureException(Exception("Error updating exact data"))
-                        } else {
-                            println("Data updated successfully")
+                if (refreshToken.isNotEmpty()) {
+                        GlobalScope.launch {
+                            val refreshTokenResponse = exactRepository.refreshToken(refreshToken, clientSettings)
+                            val accessToken = refreshTokenResponse.accessToken
+                            authRepository.saveUser(accessToken, refreshTokenResponse.refreshToken)
+                            val (insertedSales, insertedReceivables) = refreshExactData(accessToken)
+                            if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
+                                Sentry.captureException(Exception("Error updating exact data"))
+                            } else {
+                                println("Data updated successfully")
+                            }
                         }
-                    }
+                } else {
+                    Sentry.captureException(Exception("Refresh token not found"))
                 }
-                //what if token not found?
             }
         }
     }.start(wait = true)
