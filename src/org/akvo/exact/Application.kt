@@ -24,8 +24,8 @@ import kotlinx.html.body
 import kotlinx.html.head
 import kotlinx.html.p
 import kotlinx.html.title
-import org.akvo.exact.repository.AuthRepository
-import org.akvo.exact.repository.AuthRepositoryImpl
+import org.akvo.exact.repository.auth.AuthRepository
+import org.akvo.exact.repository.auth.AuthRepositoryImpl
 import org.akvo.exact.repository.exact.ExactRepository
 import org.akvo.exact.repository.exact.ExactRepositoryImpl
 import org.akvo.exact.repository.sheets.GOOGLE_SHEET_ID

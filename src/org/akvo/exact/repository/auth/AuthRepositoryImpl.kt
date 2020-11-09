@@ -1,15 +1,19 @@
-package org.akvo.exact.repository
+package org.akvo.exact.repository.auth
 
+import org.akvo.exact.repository.DataBaseFactory
+import org.akvo.exact.repository.Users
 import org.jetbrains.exposed.sql.statements.InsertStatement
 import org.jetbrains.exposed.sql.*
 
-class AuthRepositoryImpl: AuthRepository {
+class AuthRepositoryImpl : AuthRepository {
     init {
         DataBaseFactory.init()
     }
 
+    private val authMapper = AuthMapper()
+
     override suspend fun saveUser(token: String, refreshToken: String): String {
-        var statement : InsertStatement<Number>? = null
+        var statement: InsertStatement<Number>? = null
         DataBaseFactory.dbQuery {
             Users.deleteAll()
         }
@@ -19,12 +23,12 @@ class AuthRepositoryImpl: AuthRepository {
                 user[Users.refreshToken] = refreshToken
             }
         }
-        return rowToToken(statement?.resultedValues?.get(0))
+        return authMapper.rowToToken(statement?.resultedValues?.get(0))
     }
 
     override suspend fun loadSavedRefreshToken(): String {
         val tokens: List<String> = DataBaseFactory.dbQuery {
-            Users.selectAll().limit(1).map { rowToRefreshToken(it) }
+            Users.selectAll().limit(1).map { authMapper.rowToRefreshToken(it) }
         }
         return when {
             tokens.isEmpty() -> {
@@ -34,21 +38,5 @@ class AuthRepositoryImpl: AuthRepository {
                 tokens[0]
             }
         }
-    }
-
-    //TODO: move to a mapper class
-    private fun rowToRefreshToken(row: ResultRow): String {
-        if (row == null) {
-            return ""
-        }
-        return row[Users.refreshToken]
-    }
-
-    //TODO: move to a mapper class
-    private fun rowToToken(row: ResultRow?): String {
-        if (row == null) {
-            return ""
-        }
-        return row[Users.token]
     }
 }

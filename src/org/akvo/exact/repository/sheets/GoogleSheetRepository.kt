@@ -6,17 +6,18 @@ import org.akvo.exact.repository.SpreadSheetDataMapper
 
 class GoogleSheetRepository: SheetRepository {
     private val spreadSheetDataSource = GoogleSheetDataSource()
+    private val spreadSheetDataMapper = SpreadSheetDataMapper()
 
     override suspend fun insertSalesInvoices(salesInvoices: SalesInvoicesResult): String {
         return spreadSheetDataSource.insertToSheet(
-            SpreadSheetDataMapper().salesInvoicesToStrings(salesInvoices),
+            spreadSheetDataMapper.salesInvoicesToStrings(salesInvoices),
             RANGE_SHEET1
         )
     }
 
     override suspend fun insertReceivablesInvoices(receivableInvoices: ReceivableInvoicesResult): String {
         return spreadSheetDataSource.insertToSheet(
-            SpreadSheetDataMapper().receivableInvoicesToStrings(receivableInvoices),
+            spreadSheetDataMapper.receivableInvoicesToStrings(receivableInvoices),
             RANGE_SHEET2
         )
     }

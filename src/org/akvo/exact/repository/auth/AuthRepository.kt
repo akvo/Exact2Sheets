@@ -1,4 +1,4 @@
-package org.akvo.exact.repository
+package org.akvo.exact.repository.auth
 
 interface AuthRepository {
 
