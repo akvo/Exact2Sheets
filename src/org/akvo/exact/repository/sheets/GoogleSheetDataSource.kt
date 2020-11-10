@@ -52,6 +52,7 @@ class GoogleSheetDataSource {
         requestBody.data = data
         requestBody.valueInputOption = "USER_ENTERED"
         return try {
+            sheetsService.spreadsheets().values().clear(spreadsheetId, sheetRange, ClearValuesRequest()).execute()
             sheetsService.spreadsheets().values().batchUpdate(spreadsheetId, requestBody).execute()
             updateSpreadSheetPermissions(spreadsheetId)
             println("Data successfully inserted to spreadsheet ID: $spreadsheetId, sheet: $sheetRange")
