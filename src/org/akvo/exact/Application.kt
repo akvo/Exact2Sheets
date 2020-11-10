@@ -16,7 +16,9 @@ import io.ktor.util.*
 import io.sentry.Sentry
 import io.sentry.Sentry.init
 import io.sentry.SentryOptions
+import javafx.application.Application.launch
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.html.a
 import kotlinx.html.b
@@ -65,9 +67,17 @@ fun main(args: Array<String>) {
 }
 
 @KtorExperimentalAPI
-@Suppress("unused") // Referenced in application.conf
+@Suppress("unused")
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
+    launch {
+        println("Will schedule task")
+       // while(true) { //don't repeat for now
+            delay(60000) //60 seconds to test
+            println("Will run task now")
+            runRefreshTask()
+      //  }
+    }
     embeddedServer(Netty, 8080) {
 
         install(Authentication) {
@@ -128,26 +138,28 @@ fun Application.module(testing: Boolean = false) {
                 }
             }
             get("/refresh") {
-                val refreshToken = authRepository.loadSavedRefreshToken()
-                println("Saved token in db found: $refreshToken")
-                if (refreshToken.isNotEmpty()) {
-                        GlobalScope.launch {
-                            val refreshTokenResponse = exactRepository.refreshToken(refreshToken, clientSettings)
-                            val accessToken = refreshTokenResponse.accessToken
-                            authRepository.saveUser(accessToken, refreshTokenResponse.refreshToken)
-                            val (insertedSales, insertedReceivables) = refreshExactData(accessToken)
-                            if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
-                                Sentry.captureException(Exception("Error updating exact data"))
-                            } else {
-                                println("Data updated successfully")
-                            }
-                        }
-                } else {
-                    Sentry.captureException(Exception("Refresh token not found"))
-                }
+                runRefreshTask()
             }
         }
     }.start(wait = true)
+}
+
+private suspend fun runRefreshTask() {
+    val refreshToken = authRepository.loadSavedRefreshToken()
+    println("Saved token in db found: $refreshToken")
+    if (refreshToken.isNotEmpty()) {
+            val refreshTokenResponse = exactRepository.refreshToken(refreshToken, clientSettings)
+            val accessToken = refreshTokenResponse.accessToken
+            authRepository.saveUser(accessToken, refreshTokenResponse.refreshToken)
+            val (insertedSales, insertedReceivables) = refreshExactData(accessToken)
+            if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
+                Sentry.captureException(Exception("Error updating exact data"))
+            } else {
+                println("Data updated successfully")
+            }
+    } else {
+        Sentry.captureException(Exception("Refresh token not found"))
+    }
 }
 
 private suspend fun refreshExactData(accessToken: String?): Pair<String, String> {
