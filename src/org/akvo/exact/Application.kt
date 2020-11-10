@@ -1,62 +1,88 @@
 package org.akvo.exact
 
 import com.typesafe.config.ConfigFactory
-import io.ktor.application.Application
-import io.ktor.application.call
-import io.ktor.application.install
+import io.ktor.application.*
 import io.ktor.auth.*
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.apache.Apache
-import io.ktor.client.features.json.JsonFeature
-import io.ktor.client.request.*
-import io.ktor.config.HoconApplicationConfig
-import io.ktor.html.respondHtml
-import io.ktor.http.ContentType
-import io.ktor.http.HttpMethod
-import io.ktor.http.URLProtocol
-import io.ktor.http.contentType
-import io.ktor.response.respondText
-import io.ktor.routing.get
-import io.ktor.routing.routing
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
-import io.ktor.util.KtorExperimentalAPI
-import kotlinx.html.*
+import io.ktor.client.*
+import io.ktor.client.engine.apache.*
+import io.ktor.config.*
+import io.ktor.html.*
+import io.ktor.http.*
+import io.ktor.response.*
+import io.ktor.routing.*
+import io.ktor.server.engine.*
+import io.ktor.server.netty.*
+import io.ktor.util.*
+import io.sentry.Sentry
+import io.sentry.Sentry.init
+import io.sentry.SentryOptions
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.html.a
+import kotlinx.html.b
+import kotlinx.html.body
+import kotlinx.html.head
+import kotlinx.html.p
+import kotlinx.html.title
+import org.akvo.exact.repository.auth.AuthRepository
+import org.akvo.exact.repository.auth.AuthRepositoryImpl
+import org.akvo.exact.repository.exact.ExactRepository
+import org.akvo.exact.repository.exact.ExactRepositoryImpl
+import org.akvo.exact.repository.sheets.GOOGLE_SHEET_ID
+import org.akvo.exact.repository.sheets.GoogleSheetRepository
+import org.akvo.exact.repository.sheets.SheetRepository
 
 private const val SERVER_NAME = "IdentityServer4"
-private const val EXACT_HOST = "start.exactonline.nl"
 
 @KtorExperimentalAPI
-val config = HoconApplicationConfig(ConfigFactory.load("secret.conf"))
+val secrets = HoconApplicationConfig(ConfigFactory.load("secret.conf"))
 
 @KtorExperimentalAPI
-val redirectUrl = config.property("ktor.secret.redirectUrl").getString()
+val redirectUrl = secrets.property("ktor.secret.redirectUrl").getString()
 
 @KtorExperimentalAPI
 val clientSettings = OAuthServerSettings.OAuth2ServerSettings(
     name = SERVER_NAME,
     authorizeUrl = "https://start.exactonline.nl/api/oauth2/auth", // OAuth authorization endpoint
     accessTokenUrl = "https://start.exactonline.nl/api/oauth2/token", // OAuth token endpoint
-    clientId = config.property("ktor.secret.clientId").getString(),
-    clientSecret = config.property("ktor.secret.clientSecret").getString(),
+    clientId = secrets.property("ktor.secret.clientId").getString(),
+    clientSecret = secrets.property("ktor.secret.clientSecret").getString(),
     accessTokenRequiresBasicAuth = false, // basic auth implementation is not "OAuth style" so falling back to post body
     requestMethod = HttpMethod.Post // must POST to token endpoint
 )
 
-fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
+private val sheetRepository: SheetRepository = GoogleSheetRepository()
+private val exactRepository: ExactRepository = ExactRepositoryImpl()
+private val authRepository: AuthRepository = AuthRepositoryImpl()
+
+@Suppress("unused")
+@KtorExperimentalAPI
+fun main(args: Array<String>) {
+    init { options: SentryOptions ->
+        options.dsn = secrets.property("ktor.secret.sentryDsn").getString()
+    }
+    EngineMain.main(args)
+}
 
 @KtorExperimentalAPI
-@Suppress("unused") // Referenced in application.conf
+@Suppress("unused")
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
-
+    launch {
+        println("Will schedule task")
+       // while(true) { //don't repeat for now
+            delay(60000) //60 seconds to test
+            println("Will run task now")
+            runRefreshTask()
+      //  }
+    }
     embeddedServer(Netty, 8080) {
 
         install(Authentication) {
             oauth(SERVER_NAME) {
                 client = HttpClient(Apache)
                 providerLookup = { clientSettings }
-                urlProvider = { redirectUrl } //redirect_url
+                urlProvider = { redirectUrl }
             }
         }
 
@@ -94,23 +120,13 @@ fun Application.module(testing: Boolean = false) {
             authenticate(SERVER_NAME) {
                 get("/oauth") {
                     val principal = call.authentication.principal<OAuthAccessTokenResponse.OAuth2>()
-
-                    val client = HttpClient(Apache) {
-                        install(JsonFeature)
-                    }
-
-                    val invoicesResult = getInvoicesFromExact(client, principal)
-                    val insertedSales = SpreadSheetDataSource().insertToSheet(
-                        SpreadSheetDataMapper().salesInvoicesToStrings(invoicesResult.first),
-                        RANGE_SHEET1
-                    )
-                    val insertedReceivables = SpreadSheetDataSource().insertToSheet(
-                        SpreadSheetDataMapper().receivableInvoicesToStrings(invoicesResult.second),
-                        RANGE_SHEET2
-                    )
-
+                    saveTokens(principal)
+                    val (insertedSales, insertedReceivables) = refreshExactData(principal?.accessToken)
                     if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
-                        call.respondText("""<b>Error inserting pending and/or outstanding Invoices</b>""", ContentType.Text.Html)
+                        call.respondText(
+                            """<b>Error inserting pending and/or outstanding Invoices</b>""",
+                            ContentType.Text.Html
+                        )
                     } else {
                         call.respondText(
                             """Data successfully inserted, click <a href="https://docs.google.com/spreadsheets/d/$insertedSales/edit?usp=sharing">here</a> to open""",
@@ -119,49 +135,41 @@ fun Application.module(testing: Boolean = false) {
                     }
                 }
             }
+            get("/refresh") {
+                runRefreshTask()
+            }
         }
     }.start(wait = true)
 }
 
-private suspend fun getInvoicesFromExact(
-    client: HttpClient,
-    principal: OAuthAccessTokenResponse.OAuth2?
-): Pair<SalesInvoicesResult, ReceivableInvoicesResult> {
-    val divisionResult = client.get<DivisionResult> {
-        url {
-            protocol = URLProtocol.HTTPS
-            host = EXACT_HOST
-            encodedPath = "/api/v1/current/Me?\$select=CurrentDivision"
-        }
-        contentType(ContentType.Application.Json)
-        headers {
-            header("Authorization", "Bearer ${principal?.accessToken}")
-        }
-    }
-    val division = divisionResult.d.results[0].currentDivision
-    print("Your division is $division\n")
-    val salesInvoices = client.get<SalesInvoicesResult> {
-        buildRequest(principal, "/api/v1/$division/salesinvoice/SalesInvoices?\$filter=Status+lt+50&\$select=AmountDC,Currency,Description,InvoiceToContactPersonFullName,InvoiceToName,OrderDate")
-    }
-
-    val receivableInvoices = client.get<ReceivableInvoicesResult> {
-        buildRequest(principal, "/api/v1/$division/read/financial/ReceivablesList?\$select=AccountName,Amount,CurrencyCode,Description,DueDate,InvoiceDate,InvoiceNumber")
-    }
-    return Pair(salesInvoices, receivableInvoices)
-}
-
-private fun HttpRequestBuilder.buildRequest(
-    principal: OAuthAccessTokenResponse.OAuth2?,
-    path: String
-) {
-    url {
-        protocol = URLProtocol.HTTPS
-        host = EXACT_HOST
-        encodedPath = path
-    }
-    contentType(ContentType.Application.Json)
-    headers {
-        header("Authorization", "Bearer ${principal?.accessToken}")
+private suspend fun runRefreshTask() {
+    val refreshToken = authRepository.loadSavedRefreshToken()
+    if (refreshToken.isNotEmpty()) {
+            val refreshTokenResponse = exactRepository.refreshToken(refreshToken, clientSettings)
+            val accessToken = refreshTokenResponse.accessToken
+            authRepository.saveUser(accessToken, refreshTokenResponse.refreshToken)
+            val (insertedSales, insertedReceivables) = refreshExactData(accessToken)
+            if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
+                Sentry.captureException(Exception("Error updating exact data"))
+            } else {
+                println("Data updated successfully")
+            }
+    } else {
+        Sentry.captureException(Exception("Refresh token not found"))
     }
 }
 
+private suspend fun refreshExactData(accessToken: String?): Pair<String, String> {
+    val invoicesResult = exactRepository.getInvoicesFromExact(accessToken)
+    val insertedSales = sheetRepository.insertSalesInvoices(invoicesResult.first)
+    val insertedReceivables = sheetRepository.insertReceivablesInvoices(invoicesResult.second)
+    return Pair(insertedSales, insertedReceivables)
+}
+
+private suspend fun saveTokens(principal: OAuthAccessTokenResponse.OAuth2?) {
+    principal?.let {
+        principal.refreshToken?.let { refreshToken ->
+            authRepository.saveUser(token=principal.accessToken, refreshToken=refreshToken)
+        }
+    }
+}

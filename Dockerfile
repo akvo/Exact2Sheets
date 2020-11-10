@@ -1,6 +1,8 @@
 FROM openjdk:8-jre-alpine
 
 ENV APPLICATION_USER ktor
+ENV GOOGLE_APPLICATION_CREDENTIALS=/resources/cloud-database-service-account.json
+
 RUN adduser -D -g '' $APPLICATION_USER
 
 RUN mkdir /app

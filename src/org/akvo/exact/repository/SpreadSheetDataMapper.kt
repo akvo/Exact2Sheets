@@ -1,5 +1,7 @@
-package org.akvo.exact
+package org.akvo.exact.repository
 
+import org.akvo.exact.repository.exact.api.ReceivableInvoicesResult
+import org.akvo.exact.repository.exact.api.SalesInvoicesResult
 import java.text.*
 import java.util.*
 

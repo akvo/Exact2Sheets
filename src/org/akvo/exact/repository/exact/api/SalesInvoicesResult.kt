@@ -1,4 +1,4 @@
-package org.akvo.exact
+package org.akvo.exact.repository.exact.api
 
 import com.google.gson.annotations.SerializedName
 

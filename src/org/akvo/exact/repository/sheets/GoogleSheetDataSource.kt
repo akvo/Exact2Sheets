@@ -1,4 +1,4 @@
-package org.akvo.exact
+package org.akvo.exact.repository.sheets
 
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.HttpRequestInitializer
@@ -11,15 +11,16 @@ import com.google.api.services.sheets.v4.SheetsScopes
 import com.google.api.services.sheets.v4.model.*
 import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.GoogleCredentials
+import io.sentry.*
 
 const val GOOGLE_SHEET_ID = "1RpsFsmLCOfNmeRLDOiEzvQqBF1uhMAeJQB8ZicQExlE"
 //const val GOOGLE_SHEET_ID = "1GfYvGOfCFSeGBtHzjjh0FWQPwKfdlzJPINEetTMshz8" //for tests
 
 private const val APPLICATION_NAME = "exact2sheets"
-const val RANGE_SHEET1 = "Invoices!A1:Z1000"
-const val RANGE_SHEET2 = "Receivables!A1:Z1000"
+const val RANGE_SHEET1 = "Future Invoices!A1:Z1000"
+const val RANGE_SHEET2 = "Outstanding!A1:Z1000"
 
-class SpreadSheetDataSource {
+class GoogleSheetDataSource {
     private val transport = GoogleNetHttpTransport.newTrustedTransport()
     private val jacksonFactory = JacksonFactory.getDefaultInstance()
 
@@ -53,10 +54,11 @@ class SpreadSheetDataSource {
         return try {
             sheetsService.spreadsheets().values().batchUpdate(spreadsheetId, requestBody).execute()
             updateSpreadSheetPermissions(spreadsheetId)
-            println("Data successfully inserted to spreadsheet ID: $spreadsheetId")
+            println("Data successfully inserted to spreadsheet ID: $spreadsheetId, sheet: $sheetRange")
             spreadsheetId
         } catch (e: Exception) {
             System.err.print(e)
+            Sentry.captureException(e)
             ""
         }
     }
@@ -87,15 +89,15 @@ class SpreadSheetDataSource {
 }
 
 object AppCredentials {
-    val local: HttpRequestInitializer by lazy {
-        HttpCredentialsAdapter(GoogleCredentials.fromStream(pathStream).createScoped(scopes))
-    }
+    private const val credentialsFilePath = "/credentials.json"
+
+    private val scopes = listOf(SheetsScopes.SPREADSHEETS, DriveScopes.DRIVE)
 
     private val pathStream
         get() = AppCredentials::class.java.getResourceAsStream(credentialsFilePath)
             ?: error("Resource not found: $credentialsFilePath")
 
-    private val scopes = listOf(SheetsScopes.SPREADSHEETS, DriveScopes.DRIVE)
+    val local: HttpRequestInitializer by lazy {
+        HttpCredentialsAdapter(GoogleCredentials.fromStream(pathStream).createScoped(scopes))
+    }
 }
-
-private const val credentialsFilePath = "/credentials.json"
