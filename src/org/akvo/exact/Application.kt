@@ -31,6 +31,7 @@ import org.akvo.exact.repository.exact.ExactRepositoryImpl
 import org.akvo.exact.repository.sheets.GOOGLE_SHEET_ID
 import org.akvo.exact.repository.sheets.GoogleSheetRepository
 import org.akvo.exact.repository.sheets.SheetRepository
+import java.util.concurrent.TimeUnit
 
 private const val SERVER_NAME = "IdentityServer4"
 
@@ -69,12 +70,10 @@ fun main(args: Array<String>) {
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
     launch {
-        println("Will schedule task")
-       // while(true) { //don't repeat for now
-            delay(60000) //60 seconds to test
-            println("Will run task now")
+        while(true) {
+            delay(TimeUnit.HOURS.toMillis(1)) //agreed to repeat every hour
             runRefreshTask()
-      //  }
+        }
     }
     embeddedServer(Netty, 8080) {
 
@@ -103,7 +102,7 @@ fun Application.module(testing: Boolean = false) {
                         }
                         p {
                             b {
-                                +"All previous data on that sheet will be kept!"
+                                +"All previous data on that sheet will replaced!"
                             }
                         }
                         p {
@@ -145,15 +144,19 @@ fun Application.module(testing: Boolean = false) {
 private suspend fun runRefreshTask() {
     val refreshToken = authRepository.loadSavedRefreshToken()
     if (refreshToken.isNotEmpty()) {
+        try {
             val refreshTokenResponse = exactRepository.refreshToken(refreshToken, clientSettings)
             val accessToken = refreshTokenResponse.accessToken
             authRepository.saveUser(accessToken, refreshTokenResponse.refreshToken)
-            val (insertedSales, insertedReceivables) = refreshExactData(accessToken)
-            if (insertedSales.isBlank() || insertedReceivables.isBlank()) {
-                Sentry.captureException(Exception("Error updating exact data"))
-            } else {
-                println("Data updated successfully")
-            }
+            refreshExactData(accessToken)
+        } catch (e: Throwable) {
+            /**
+             * after reading exact exceptions it seems we should be aware of them all
+             * see https://support.exactonline.com/community/s/knowledge-base#All-All-DNO-Content-respcodeserrorhandling
+             * Since polling will be frequent, no need to retry
+             */
+            Sentry.captureException(e)
+        }
     } else {
         Sentry.captureException(Exception("Refresh token not found"))
     }
