@@ -146,7 +146,6 @@ fun Application.module(testing: Boolean = false) {
 
 private suspend fun runRefreshTask() {
     val refreshToken = authRepository.loadSavedRefreshToken()
-    println("Saved token in db found: $refreshToken")
     if (refreshToken.isNotEmpty()) {
             val refreshTokenResponse = exactRepository.refreshToken(refreshToken, clientSettings)
             val accessToken = refreshTokenResponse.accessToken

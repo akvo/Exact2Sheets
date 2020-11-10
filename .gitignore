@@ -7,4 +7,5 @@
 *.iws
 /resources/secret.conf
 /resources/credentials.json
+/resources/cloud-database-service-account.json
 /deployment.yml.tmp

@@ -20,23 +20,18 @@ class ExactApiDataSource {
     }
 
     suspend fun refreshToken(refreshToken: String, clientId: String, clientSecret: String): RefreshTokenResponse {
-        try {
-            return client.post {
-                url {
-                    protocol = URLProtocol.HTTPS
-                    host = EXACT_HOST
-                    encodedPath = "/api/oauth2/token"
-                }
-                body = FormDataContent(Parameters.build {
-                    append("refresh_token", refreshToken)
-                    append("grant_type", "refresh_token")
-                    append("client_id", clientId)
-                    append("client_secret", clientSecret)
-                })
+        return client.post {
+            url {
+                protocol = URLProtocol.HTTPS
+                host = EXACT_HOST
+                encodedPath = "/api/oauth2/token"
             }
-        } catch (e: Exception) {
-            println(e)
-            throw e
+            body = FormDataContent(Parameters.build {
+                append("refresh_token", refreshToken)
+                append("grant_type", "refresh_token")
+                append("client_id", clientId)
+                append("client_secret", clientSecret)
+            })
         }
     }
 

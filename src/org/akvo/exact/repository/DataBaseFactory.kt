@@ -15,10 +15,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 object DataBaseFactory {
 
     private val secrets = HoconApplicationConfig(ConfigFactory.load("secret.conf"))
-    private val databaseName = secrets.property("ktor.database.name").getString()
-    private val databaseUser = secrets.property("ktor.database.user").getString()
-    private val databaseUsername = secrets.property("ktor.database.user").getString()
-    private val databaseUserPassword = secrets.property("ktor.database.password").getString()
+    private val password = secrets.property("ktor.database.password").getString()
 
     fun init() {
         Database.connect(hikari())
@@ -30,17 +27,10 @@ object DataBaseFactory {
 
     private fun hikari(): HikariDataSource {
         val config = HikariConfig()
-        config.driverClassName = "org.postgresql.Driver"
-        config.jdbcUrl = "jdbc:postgresql:$databaseName?user=$databaseUser"
+        config.jdbcUrl = "jdbc:postgresql://none/exact2sheets?user=exact2sheetsuser&password=$password&ssl=false&cloudSqlInstance=akvo-lumen:europe-west1:shared-test-database&socketFactory=com.google.cloud.sql.postgres.SocketFactory"
         config.maximumPoolSize = 3
         config.isAutoCommit = false
         config.transactionIsolation = "TRANSACTION_REPEATABLE_READ"
-        if (databaseUsername != null && databaseUsername.isNotEmpty()) {
-            config.username = databaseUsername
-        }
-        if (databaseUserPassword != null) {
-            config.password = databaseUserPassword
-        }
         config.validate()
         return HikariDataSource(config)
     }
