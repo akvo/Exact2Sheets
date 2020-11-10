@@ -52,7 +52,7 @@ dependencies {
     implementation "org.jetbrains.exposed:exposed-jdbc:$exposed_version"
     implementation "org.postgresql:postgresql:$postgres_version"
     implementation "com.zaxxer:HikariCP:$hikaricp_version"
-    implementation "com.google.cloud.sql:postgres-socket-factory:1.0.16"
+    implementation "com.google.cloud.sql:postgres-socket-factory:$gcloud_postgres_version"
 
     testImplementation "io.ktor:ktor-server-tests:$ktor_version"
 }
