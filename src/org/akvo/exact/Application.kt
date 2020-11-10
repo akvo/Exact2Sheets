@@ -16,8 +16,6 @@ import io.ktor.util.*
 import io.sentry.Sentry
 import io.sentry.Sentry.init
 import io.sentry.SentryOptions
-import javafx.application.Application.launch
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.html.a
