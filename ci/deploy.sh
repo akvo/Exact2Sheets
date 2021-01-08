@@ -29,7 +29,7 @@ gcloud container clusters get-credentials test
 
 log Pushing images
 gcloud auth configure-docker
-docker push eu.gcr.io/${PROJECT_NAME}/akvo-exact
+docker push "eu.gcr.io/${PROJECT_NAME}/akvo-exact:$CI_COMMIT"
 
 sed -e "s/\${TRAVIS_COMMIT}/$CI_COMMIT/" ci/k8s/deployment.yml > deployment.yml.tmp
 #
