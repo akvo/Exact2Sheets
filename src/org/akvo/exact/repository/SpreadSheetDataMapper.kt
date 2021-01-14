@@ -1,7 +1,7 @@
 package org.akvo.exact.repository
 
-import org.akvo.exact.repository.exact.api.ReceivableInvoicesResult
-import org.akvo.exact.repository.exact.api.SalesInvoicesResult
+import org.akvo.exact.repository.exact.api.ReceivableInvoice
+import org.akvo.exact.repository.exact.api.SalesInvoice
 import java.text.*
 import java.util.*
 
@@ -9,8 +9,7 @@ class SpreadSheetDataMapper {
 
     private val simpleDateFormat = SimpleDateFormat("MM-dd-yyyy")
 
-    fun salesInvoicesToStrings(result: SalesInvoicesResult): MutableList<List<String>> {
-        val invoices = result.d.results
+    fun salesInvoicesToStrings(invoices: List<SalesInvoice>): MutableList<List<String>> {
         val values = mutableListOf<List<String>>()
         values.add(
             listOf(
@@ -44,8 +43,7 @@ class SpreadSheetDataMapper {
         return if (date != null) simpleDateFormat.format(date) else ""
     }
 
-    fun receivableInvoicesToStrings(result: ReceivableInvoicesResult): MutableList<List<String>> {
-        val invoices = result.d.results
+    fun receivableInvoicesToStrings(invoices: List<ReceivableInvoice>): MutableList<List<String>> {
         val values = mutableListOf<List<String>>()
         values.add(
             listOf(

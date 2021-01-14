@@ -1,17 +1,17 @@
 package org.akvo.exact.repository.exact
 
 import io.ktor.auth.*
-import org.akvo.exact.repository.exact.api.ReceivableInvoicesResult
+import org.akvo.exact.repository.exact.api.ReceivableInvoice
 import org.akvo.exact.repository.exact.api.RefreshTokenResponse
-import org.akvo.exact.repository.exact.api.SalesInvoicesResult
+import org.akvo.exact.repository.exact.api.SalesInvoice
 
 class ExactRepositoryImpl : ExactRepository {
     private val exactApiDataSource = ExactApiDataSource()
 
-    override suspend fun getInvoicesFromExact(accessToken: String?): Pair<SalesInvoicesResult, ReceivableInvoicesResult> {
+    override suspend fun getInvoicesFromExact(accessToken: String?): Pair<List<SalesInvoice>, List<ReceivableInvoice>> {
         val division = exactApiDataSource.getUserDivision(accessToken)
-        val salesInvoices = exactApiDataSource.getSalesInvoices(division, accessToken)
-        val receivableInvoices = exactApiDataSource.getReceivableInvoices(division, accessToken)
+        val salesInvoices = exactApiDataSource.getAllSalesInvoices(division, accessToken)
+        val receivableInvoices = exactApiDataSource.getAllReceivableInvoices(division, accessToken)
         return Pair(salesInvoices, receivableInvoices)
     }
 

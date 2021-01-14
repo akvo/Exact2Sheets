@@ -4,12 +4,13 @@ import com.google.gson.annotations.SerializedName
 
 data class ReceivableInvoicesResult (
 
-    @SerializedName("d") val d : ReceivableD
+    @SerializedName("d") val d : ReceivableD,
 )
 
 data class ReceivableD (
 
-    @SerializedName("results") val results : List<ReceivableInvoice>
+    @SerializedName("results") val results : List<ReceivableInvoice>,
+    @SerializedName("__next") val nextUrl: String?
 )
 
 data class ReceivableInvoice (

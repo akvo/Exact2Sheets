@@ -7,8 +7,10 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
 import org.akvo.exact.repository.exact.api.DivisionResult
+import org.akvo.exact.repository.exact.api.ReceivableInvoice
 import org.akvo.exact.repository.exact.api.ReceivableInvoicesResult
 import org.akvo.exact.repository.exact.api.RefreshTokenResponse
+import org.akvo.exact.repository.exact.api.SalesInvoice
 import org.akvo.exact.repository.exact.api.SalesInvoicesResult
 
 private const val EXACT_HOST = "start.exactonline.nl"
@@ -35,24 +37,56 @@ class ExactApiDataSource {
         }
     }
 
-    suspend fun getReceivableInvoices(division: Int, accessToken: String?): ReceivableInvoicesResult {
+    suspend fun getAllSalesInvoices(division: Int, accessToken: String?): MutableList<SalesInvoice> {
+        val salesInvoices = mutableListOf<SalesInvoice>()
+        var salesInvoicesResult: SalesInvoicesResult = getSalesInvoices(division, accessToken)
+        salesInvoices.addAll(salesInvoicesResult.d.results)
+        var nextUrl = salesInvoicesResult.d.nextUrl
+        while (nextUrl != null && "" != nextUrl) {
+            val skip = nextUrl.substring(nextUrl.lastIndexOf("&"))
+            salesInvoicesResult = getSalesInvoices(division, accessToken, skip)
+            salesInvoices.addAll(salesInvoicesResult.d.results)
+            nextUrl = salesInvoicesResult.d.nextUrl
+        }
+        return salesInvoices
+    }
+
+    suspend fun getAllReceivableInvoices(division: Int, accessToken: String?): MutableList<ReceivableInvoice> {
+        val receivableInvoices = mutableListOf<ReceivableInvoice>()
+        var receivableInvoicesResult: ReceivableInvoicesResult = getReceivableInvoices(division, accessToken)
+        receivableInvoices.addAll(receivableInvoicesResult.d.results)
+        var nextUrl = receivableInvoicesResult.d.nextUrl
+        while (nextUrl != null && "" != nextUrl) {
+            val skip = nextUrl.substring(nextUrl.lastIndexOf("&"))
+            receivableInvoicesResult = getReceivableInvoices(division, accessToken, skip)
+            receivableInvoices.addAll(receivableInvoicesResult.d.results)
+            nextUrl = receivableInvoicesResult.d.nextUrl
+        }
+        return receivableInvoices
+    }
+
+    private suspend fun getReceivableInvoices(
+        division: Int,
+        accessToken: String?,
+        skip: String = ""
+    ): ReceivableInvoicesResult {
         return client.get {
             val basePath = "/api/v1/$division/read/financial/ReceivablesList"
             val select = "AccountName,Amount,CurrencyCode,Description,DueDate,InvoiceDate,InvoiceNumber"
             buildRequest(
-                "$basePath?\$select=$select",
+                "$basePath?\$select=$select$skip",
                 accessToken
             )
         }
     }
 
-    suspend fun getSalesInvoices(division: Int, accessToken: String?): SalesInvoicesResult {
+    private suspend fun getSalesInvoices(division: Int, accessToken: String?, skip: String = ""): SalesInvoicesResult {
         return client.get {
             val basePath = "/api/v1/$division/salesinvoice/SalesInvoices"
             val filter = "Status+lt+50"
             val select = "AmountDC,Currency,Description,InvoiceToContactPersonFullName,InvoiceToName,OrderDate"
             buildRequest(
-                "$basePath?\$filter=$filter&\$select=$select",
+                "$basePath?\$filter=$filter&\$select=$select$skip",
                 accessToken
             )
         }
